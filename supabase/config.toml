@@ -1,1 +1,4 @@
 project_id = "ooeohzreqoevywpelohu"
+
+[functions.ai-task-breakdown]
+verify_jwt = false

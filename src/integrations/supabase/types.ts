@@ -14,7 +14,141 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      energy_schedule: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          energy: string
+          hour: string
+          id: string
+          is_current: boolean
+          task: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week?: number
+          energy?: string
+          hour: string
+          id?: string
+          is_current?: boolean
+          task?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          energy?: string
+          hour?: string
+          id?: string
+          is_current?: boolean
+          task?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mood_logs: {
+        Row: {
+          created_at: string
+          energy_level: string
+          id: string
+          mood: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          energy_level?: string
+          id?: string
+          mood: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          energy_level?: string
+          id?: string
+          mood?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          last_active_date: string | null
+          level: number
+          streak: number
+          updated_at: string
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          last_active_date?: string | null
+          level?: number
+          streak?: number
+          updated_at?: string
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          last_active_date?: string | null
+          level?: number
+          streak?: number
+          updated_at?: string
+          user_id?: string
+          xp?: number
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          completed: boolean
+          created_at: string
+          emoji: string | null
+          id: string
+          subtasks: Json
+          title: string
+          updated_at: string
+          user_id: string
+          xp_reward: number
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          subtasks?: Json
+          title: string
+          updated_at?: string
+          user_id: string
+          xp_reward?: number
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          subtasks?: Json
+          title?: string
+          updated_at?: string
+          user_id?: string
+          xp_reward?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
