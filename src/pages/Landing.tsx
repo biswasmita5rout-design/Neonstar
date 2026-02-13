@@ -84,9 +84,9 @@ export default function Landing() {
               <span className="text-sm font-medium text-primary">Built for neurodiverse minds</span>
             </div>
             <h1 className="text-4xl md:text-6xl font-heading font-bold text-foreground leading-tight mb-6">
-              Your brain works differently.
+              You are a <span className="text-primary">neonstar</span> to shine brighter.
               <br />
-              <span className="text-primary">So should your tools.</span>
+              <span className="text-muted-foreground text-2xl md:text-3xl">Welcome to the journey of enjoyment to work.</span>
             </h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
               NeonStar transforms overwhelming tasks into manageable steps with AI, gamified rewards, 
