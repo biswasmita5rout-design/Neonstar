@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LogOut, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useNova } from "@/hooks/useNova";
 import { supabase } from "@/integrations/supabase/client";
 import { AITaskInput } from "@/components/dashboard/AITaskInput";
 import { TaskBreakdown } from "@/components/TaskBreakdown";
@@ -11,10 +12,12 @@ import { EnergyScheduler } from "@/components/EnergyScheduler";
 import { AchievementBadges } from "@/components/AchievementBadges";
 import { MoodChecker } from "@/components/dashboard/MoodChecker";
 import { RewardCelebration } from "@/components/dashboard/RewardCelebration";
+import { NovaCompanion } from "@/components/dashboard/NovaCompanion";
+import { NovaHoverZone } from "@/components/dashboard/NovaHoverZone";
+import { ProfileDropdown } from "@/components/dashboard/ProfileDropdown";
 import { XPBar } from "@/components/XPBar";
 import { EnergyIndicator } from "@/components/EnergyIndicator";
 import { CalmModeToggle } from "@/components/CalmModeToggle";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 interface SubTask {
@@ -55,6 +58,8 @@ const badges = [
 export default function Dashboard() {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const nova = useNova();
+  const [novaMuted, setNovaMuted] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [calmMode, setCalmMode] = useState(false);
   const [xp, setXp] = useState(0);
@@ -65,9 +70,21 @@ export default function Dashboard() {
     show: false, xp: 0, message: "",
   });
 
+  const handleNovaHover = useCallback((id: string) => {
+    if (!novaMuted) nova.speakHint(id);
+  }, [nova, novaMuted]);
+
   useEffect(() => {
     if (!loading && !user) navigate("/auth?mode=login", { replace: true });
   }, [user, loading, navigate]);
+
+  // Greet user on load
+  useEffect(() => {
+    if (user && profileName && !novaMuted) {
+      const greeting = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening";
+      nova.speak(`${greeting}, ${profileName}! I'm Nova, your AI companion. Let's make today productive!`);
+    }
+  }, [profileName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load profile
   useEffect(() => {
@@ -122,7 +139,11 @@ export default function Dashboard() {
       xpReward: task.xpReward,
       subtasks: task.subtasks,
     }, ...prev]);
-  }, [user]);
+
+    if (!novaMuted) {
+      nova.speak(`Great! I've broken down "${task.title}" into ${task.subtasks.length} steps. You got this!`);
+    }
+  }, [user, nova, novaMuted]);
 
   const handleToggleSubtask = useCallback(async (taskId: string, subtaskId: string) => {
     if (!user) return;
@@ -133,7 +154,6 @@ export default function Dashboard() {
         const newSubtasks = task.subtasks.map((s) =>
           s.id === subtaskId ? { ...s, done: !s.done } : s
         );
-        // Save to DB
         supabase.from("tasks").update({ subtasks: newSubtasks as any } as any).eq("id", taskId).then();
         
         const justCompleted = newSubtasks.find((s) => s.id === subtaskId)?.done;
@@ -141,14 +161,12 @@ export default function Dashboard() {
           const allDone = newSubtasks.every((s) => s.done);
           const xpGain = allDone ? task.xpReward : 10;
           
-          // Show reward
           setReward({
             show: true,
             xp: xpGain,
             message: allDone ? `You completed "${task.title}"! 🎉` : "Step completed! Keep going!",
           });
 
-          // Update XP
           const newXp = xp + xpGain;
           const newLevel = Math.floor(newXp / 500) + 1;
           setXp(newXp);
@@ -174,7 +192,10 @@ export default function Dashboard() {
     if (user) {
       supabase.from("profiles").update({ xp: newXp } as any).eq("user_id", user.id).then();
     }
-  }, [xp, user]);
+    if (!novaMuted) {
+      nova.speak("Awesome! Focus session complete. You earned 25 XP!");
+    }
+  }, [xp, user, nova, novaMuted]);
 
   if (loading) {
     return (
@@ -198,6 +219,18 @@ export default function Dashboard() {
         onComplete={() => setReward({ show: false, xp: 0, message: "" })}
       />
 
+      <NovaCompanion
+        isSpeaking={nova.isSpeaking}
+        lastMessage={nova.lastMessage}
+        onToggleMute={() => {
+          const next = !novaMuted;
+          setNovaMuted(next);
+          if (next) nova.stop();
+          else nova.speak("I'm back! How can I help?");
+        }}
+        muted={novaMuted}
+      />
+
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -206,10 +239,18 @@ export default function Dashboard() {
             <span className="font-heading font-bold text-lg text-foreground">NeonStar</span>
           </div>
           <div className="flex items-center gap-3">
-            <CalmModeToggle enabled={calmMode} onToggle={() => setCalmMode(!calmMode)} />
-            <Button variant="ghost" size="icon" onClick={signOut}>
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <NovaHoverZone id="calm-mode" onHover={handleNovaHover}>
+              <CalmModeToggle enabled={calmMode} onToggle={() => setCalmMode(!calmMode)} />
+            </NovaHoverZone>
+            <NovaHoverZone id="profile-button" onHover={handleNovaHover}>
+              <ProfileDropdown
+                displayName={profileName}
+                email={user.email || ""}
+                level={level}
+                xp={xp}
+                onSignOut={signOut}
+              />
+            </NovaHoverZone>
           </div>
         </div>
 
@@ -224,15 +265,17 @@ export default function Dashboard() {
         </motion.div>
 
         {/* XP Bar */}
-        <div className="mb-6">
+        <NovaHoverZone id="xp-bar" onHover={handleNovaHover} className="mb-6">
           <XPBar currentXP={xp % maxXP} maxXP={maxXP} level={level} streak={streak} />
-        </div>
+        </NovaHoverZone>
 
         {/* Main grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left — AI Input + Tasks */}
           <div className="lg:col-span-2 space-y-6">
-            <AITaskInput onTaskCreated={handleTaskCreated} />
+            <NovaHoverZone id="ai-task-input" onHover={handleNovaHover}>
+              <AITaskInput onTaskCreated={handleTaskCreated} />
+            </NovaHoverZone>
 
             {tasks.length > 0 && (
               <div>
@@ -250,19 +293,29 @@ export default function Dashboard() {
             )}
 
             {!calmMode && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-                <h2 className="font-heading font-semibold text-lg text-foreground mb-3">Energy Schedule</h2>
-                <EnergyScheduler blocks={defaultSchedule} />
-              </motion.div>
+              <NovaHoverZone id="energy-schedule" onHover={handleNovaHover}>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+                  <h2 className="font-heading font-semibold text-lg text-foreground mb-3">Energy Schedule</h2>
+                  <EnergyScheduler blocks={defaultSchedule} />
+                </motion.div>
+              </NovaHoverZone>
             )}
           </div>
 
           {/* Right column */}
           <div className="space-y-6">
             <EnergyIndicator level="high" />
-            <FocusTimer onComplete={handleFocusComplete} />
-            <MoodChecker userId={user.id} />
-            {!calmMode && <AchievementBadges badges={badges} />}
+            <NovaHoverZone id="focus-timer" onHover={handleNovaHover}>
+              <FocusTimer onComplete={handleFocusComplete} />
+            </NovaHoverZone>
+            <NovaHoverZone id="mood-checker" onHover={handleNovaHover}>
+              <MoodChecker userId={user.id} />
+            </NovaHoverZone>
+            {!calmMode && (
+              <NovaHoverZone id="achievement-badges" onHover={handleNovaHover}>
+                <AchievementBadges badges={badges} />
+              </NovaHoverZone>
+            )}
           </div>
         </div>
       </div>
