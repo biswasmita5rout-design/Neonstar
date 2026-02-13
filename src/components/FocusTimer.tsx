@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, RotateCcw, Coffee } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ interface FocusTimerProps {
   onComplete?: () => void;
 }
 
-export function FocusTimer({ onComplete }: FocusTimerProps) {
+export const FocusTimer = forwardRef<{ start: () => void }, FocusTimerProps>(({ onComplete }, ref) => {
   const FOCUS_TIME = 25 * 60;
   const BREAK_TIME = 5 * 60;
 
@@ -16,6 +16,9 @@ export function FocusTimer({ onComplete }: FocusTimerProps) {
   const [isBreak, setIsBreak] = useState(false);
   const [sessions, setSessions] = useState(0);
 
+  useImperativeHandle(ref, () => ({
+    start: () => setIsRunning(true),
+  }));
   const totalTime = isBreak ? BREAK_TIME : FOCUS_TIME;
   const progress = ((totalTime - timeLeft) / totalTime) * 100;
   const minutes = Math.floor(timeLeft / 60);
@@ -135,4 +138,6 @@ export function FocusTimer({ onComplete }: FocusTimerProps) {
       </div>
     </motion.div>
   );
-}
+});
+
+FocusTimer.displayName = "FocusTimer";
