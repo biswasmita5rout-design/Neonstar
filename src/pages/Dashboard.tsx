@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
@@ -15,6 +15,7 @@ import { RewardCelebration } from "@/components/dashboard/RewardCelebration";
 import { NovaCompanion } from "@/components/dashboard/NovaCompanion";
 import { NovaHoverZone } from "@/components/dashboard/NovaHoverZone";
 import { ProfileDropdown } from "@/components/dashboard/ProfileDropdown";
+import { TaskNotification } from "@/components/dashboard/TaskNotification";
 import { XPBar } from "@/components/XPBar";
 import { EnergyIndicator } from "@/components/EnergyIndicator";
 import { CalmModeToggle } from "@/components/CalmModeToggle";
@@ -69,6 +70,13 @@ export default function Dashboard() {
   const [reward, setReward] = useState<{ show: boolean; xp: number; message: string }>({
     show: false, xp: 0, message: "",
   });
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    message: string;
+    type: "info" | "timer-prompt";
+  }>({ show: false, message: "", type: "info" });
+
+  const focusTimerRef = useRef<{ start: () => void } | null>(null);
 
   const handleNovaHover = useCallback((id: string) => {
     if (!novaMuted) nova.speakHint(id);
@@ -140,10 +148,37 @@ export default function Dashboard() {
       subtasks: task.subtasks,
     }, ...prev]);
 
+    // Notification for new task
+    toast.success(`✨ New task: "${task.title}" with ${task.subtasks.length} steps!`);
+
+    // NOVA reads the subtasks aloud
     if (!novaMuted) {
-      nova.speak(`Great! I've broken down "${task.title}" into ${task.subtasks.length} steps. You got this!`);
+      const stepsText = task.subtasks
+        .map((s, i) => `Step ${i + 1}: ${s.text.replace(/[^\w\s.,!?]/g, '')}`)
+        .join('. ');
+      nova.speak(
+        `Great! I've broken down "${task.title}" into ${task.subtasks.length} steps. Here they are: ${stepsText}. You got this!`
+      );
     }
+
+    // Prompt to start timer
+    setTimeout(() => {
+      setNotification({
+        show: true,
+        message: `Ready to work on "${task.title}"? Want me to start a focus timer?`,
+        type: "timer-prompt",
+      });
+    }, 2000);
   }, [user, nova, novaMuted]);
+
+  const handleStartTimerFromNotification = useCallback(() => {
+    setNotification({ show: false, message: "", type: "info" });
+    focusTimerRef.current?.start();
+    if (!novaMuted) {
+      nova.speak("Focus timer started! Let's crush it! 💪");
+    }
+    toast.success("⏱️ Focus timer started!");
+  }, [nova, novaMuted]);
 
   const handleToggleSubtask = useCallback(async (taskId: string, subtaskId: string) => {
     if (!user) return;
@@ -167,6 +202,17 @@ export default function Dashboard() {
             message: allDone ? `You completed "${task.title}"! 🎉` : "Step completed! Keep going!",
           });
 
+          // Show notification
+          if (allDone) {
+            toast.success(`🎉 Task "${task.title}" completed! +${xpGain} XP`);
+            if (!novaMuted) {
+              nova.speak(`Amazing! You finished "${task.title}"! You earned ${xpGain} XP! Keep up the great work!`);
+            }
+          } else {
+            const remaining = newSubtasks.filter(s => !s.done).length;
+            toast.info(`✅ Step done! ${remaining} steps remaining. +10 XP`);
+          }
+
           const newXp = xp + xpGain;
           const newLevel = Math.floor(newXp / 500) + 1;
           setXp(newXp);
@@ -182,13 +228,14 @@ export default function Dashboard() {
       });
       return updated;
     });
-  }, [user, xp]);
+  }, [user, xp, nova, novaMuted]);
 
   const handleFocusComplete = useCallback(() => {
     const xpGain = 25;
     setReward({ show: true, xp: xpGain, message: "Focus session complete! Great work! 🧠" });
     const newXp = xp + xpGain;
     setXp(newXp);
+    toast.success("🧠 Focus session complete! +25 XP");
     if (user) {
       supabase.from("profiles").update({ xp: newXp } as any).eq("user_id", user.id).then();
     }
@@ -217,6 +264,14 @@ export default function Dashboard() {
         xp={reward.xp}
         message={reward.message}
         onComplete={() => setReward({ show: false, xp: 0, message: "" })}
+      />
+
+      <TaskNotification
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onStartTimer={handleStartTimerFromNotification}
+        onDismiss={() => setNotification({ show: false, message: "", type: "info" })}
       />
 
       <NovaCompanion
@@ -306,7 +361,7 @@ export default function Dashboard() {
           <div className="space-y-6">
             <EnergyIndicator level="high" />
             <NovaHoverZone id="focus-timer" onHover={handleNovaHover}>
-              <FocusTimer onComplete={handleFocusComplete} />
+              <FocusTimer ref={focusTimerRef} onComplete={handleFocusComplete} />
             </NovaHoverZone>
             <NovaHoverZone id="mood-checker" onHover={handleNovaHover}>
               <MoodChecker userId={user.id} />
