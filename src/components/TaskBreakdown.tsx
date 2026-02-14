@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { CheckCircle2, Circle, ChevronDown, ChevronUp, Sparkles, Play } from "lucide-react";
 
 interface SubTask {
   id: string;
@@ -19,9 +19,11 @@ interface Task {
 interface TaskBreakdownProps {
   tasks: Task[];
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
+  onStartGuided?: (taskId: string) => void;
+  guidedTaskId?: string | null;
 }
 
-export function TaskBreakdown({ tasks, onToggleSubtask }: TaskBreakdownProps) {
+export function TaskBreakdown({ tasks, onToggleSubtask, onStartGuided, guidedTaskId }: TaskBreakdownProps) {
   const [expandedTask, setExpandedTask] = useState<string | null>(tasks[0]?.id || null);
 
   return (
@@ -31,6 +33,7 @@ export function TaskBreakdown({ tasks, onToggleSubtask }: TaskBreakdownProps) {
         const total = task.subtasks.length;
         const isExpanded = expandedTask === task.id;
         const allDone = completed === total;
+        const isGuided = guidedTaskId === task.id;
 
         return (
           <motion.div
@@ -38,7 +41,9 @@ export function TaskBreakdown({ tasks, onToggleSubtask }: TaskBreakdownProps) {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08 }}
-            className={`rounded-2xl border bg-card shadow-card overflow-hidden transition-colors ${allDone ? "border-primary/30" : "border-border"}`}
+            className={`rounded-2xl border bg-card shadow-card overflow-hidden transition-colors ${
+              isGuided ? "border-primary/50 ring-1 ring-primary/20" : allDone ? "border-primary/30" : "border-border"
+            }`}
           >
             <button
               onClick={() => setExpandedTask(isExpanded ? null : task.id)}
@@ -52,10 +57,23 @@ export function TaskBreakdown({ tasks, onToggleSubtask }: TaskBreakdownProps) {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {completed}/{total} steps · +{task.xpReward} XP
+                    {isGuided && <span className="text-primary ml-1">· Guided</span>}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {!allDone && onStartGuided && !isGuided && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStartGuided(task.id);
+                    }}
+                    className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+                    title="Start guided mode"
+                  >
+                    <Play className="h-3.5 w-3.5 text-primary" />
+                  </button>
+                )}
                 {allDone && <Sparkles className="h-4 w-4 text-primary animate-pulse-gentle" />}
                 {isExpanded ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
