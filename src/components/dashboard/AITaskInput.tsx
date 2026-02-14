@@ -4,6 +4,7 @@ import { Sparkles, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AITaskInputProps {
   onTaskCreated: (task: { title: string; emoji: string; xpReward: number; subtasks: { id: string; text: string; done: boolean }[] }) => void;
@@ -19,13 +20,18 @@ export function AITaskInput({ onTaskCreated }: AITaskInputProps) {
 
     setLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("You must be logged in to use AI features");
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-task-breakdown`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ task: input.trim(), type: "breakdown" }),
         }
