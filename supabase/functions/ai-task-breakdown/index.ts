@@ -33,6 +33,23 @@ serve(async (req) => {
     }
 
     const { task, type } = await req.json();
+
+    // Input validation
+    if (!task || typeof task !== "string" || task.trim().length === 0 || task.trim().length > 500) {
+      return new Response(JSON.stringify({ error: "Task must be between 1 and 500 characters" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const allowedTypes = ["breakdown", "schedule"];
+    if (!type || !allowedTypes.includes(type)) {
+      return new Response(JSON.stringify({ error: "Invalid type parameter" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const sanitizedTask = task.trim();
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -50,7 +67,7 @@ serve(async (req) => {
       model: "google/gemini-3-flash-preview",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: task },
+        { role: "user", content: sanitizedTask },
       ],
     };
 
