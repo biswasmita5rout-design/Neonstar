@@ -1,12 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNova } from "@/hooks/useNova";
+import { useNovaSmartSpeaker, useAdaptiveProfile } from "@/hooks/useNovaSmartSpeaker";
 import { supabase } from "@/integrations/supabase/client";
 import { AITaskInput } from "@/components/dashboard/AITaskInput";
 import { TaskBreakdown } from "@/components/TaskBreakdown";
+import { GuidedTaskView } from "@/components/dashboard/GuidedTaskView";
 import { FocusTimer } from "@/components/FocusTimer";
 import { EnergyScheduler } from "@/components/EnergyScheduler";
 import { AchievementBadges } from "@/components/AchievementBadges";
@@ -16,6 +18,7 @@ import { NovaCompanion } from "@/components/dashboard/NovaCompanion";
 import { NovaHoverZone } from "@/components/dashboard/NovaHoverZone";
 import { ProfileDropdown } from "@/components/dashboard/ProfileDropdown";
 import { TaskNotification } from "@/components/dashboard/TaskNotification";
+import { AdaptiveProfilePanel } from "@/components/dashboard/AdaptiveProfilePanel";
 import { XPBar } from "@/components/XPBar";
 import { EnergyIndicator } from "@/components/EnergyIndicator";
 import { CalmModeToggle } from "@/components/CalmModeToggle";
@@ -60,8 +63,11 @@ export default function Dashboard() {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const nova = useNova();
+  const cursorIdle = useNovaSmartSpeaker(3000);
+  const { profile: adaptiveProfile, updateProfile: updateAdaptiveProfile } = useAdaptiveProfile();
   const [novaMuted, setNovaMuted] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [guidedTaskId, setGuidedTaskId] = useState<string | null>(null);
   const [calmMode, setCalmMode] = useState(false);
   const [xp, setXp] = useState(0);
   const [level, setLevel] = useState(1);
@@ -78,19 +84,29 @@ export default function Dashboard() {
 
   const focusTimerRef = useRef<{ start: () => void } | null>(null);
 
+  // Smart speaking: only speak hints when cursor is idle
   const handleNovaHover = useCallback((id: string) => {
-    if (!novaMuted) nova.speakHint(id);
-  }, [nova, novaMuted]);
+    if (!novaMuted && cursorIdle && adaptiveProfile.speakFrequency !== "minimal") {
+      nova.speakHint(id);
+    }
+  }, [nova, novaMuted, cursorIdle, adaptiveProfile.speakFrequency]);
+
+  const handleMoodHover = useCallback((moodId: string) => {
+    if (!novaMuted && cursorIdle) {
+      nova.speakMoodHint(moodId);
+    }
+  }, [nova, novaMuted, cursorIdle]);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth?mode=login", { replace: true });
   }, [user, loading, navigate]);
 
-  // Greet user on load
+  // Greet user on load - calm and short
   useEffect(() => {
     if (user && profileName && !novaMuted) {
-      const greeting = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening";
-      nova.speak(`${greeting}, ${profileName}! I'm Nova, your AI companion. Let's make today productive!`);
+      const hour = new Date().getHours();
+      const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+      nova.speak(`${greeting}, ${profileName}. Let us make today a good day.`);
     }
   }, [profileName]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -140,24 +156,24 @@ export default function Dashboard() {
       return;
     }
 
-    setTasks((prev) => [{
+    const newTask: Task = {
       id: data.id,
       title: task.title,
       emoji: task.emoji,
       xpReward: task.xpReward,
       subtasks: task.subtasks,
-    }, ...prev]);
+    };
 
-    // Notification for new task
+    setTasks((prev) => [newTask, ...prev]);
+    // Auto-enter guided mode for the new task
+    setGuidedTaskId(data.id);
+
     toast.success(`✨ New task: "${task.title}" with ${task.subtasks.length} steps!`);
 
-    // NOVA reads the subtasks aloud
+    // Nova reads just the first step calmly - guided view handles this
     if (!novaMuted) {
-      const stepsText = task.subtasks
-        .map((s, i) => `Step ${i + 1}: ${s.text.replace(/[^\w\s.,!?]/g, '')}`)
-        .join('. ');
       nova.speak(
-        `Great! I've broken down "${task.title}" into ${task.subtasks.length} steps. Here they are: ${stepsText}. You got this!`
+        `I have broken "${task.title}" into ${task.subtasks.length} small steps. Let us start with the first one.`
       );
     }
 
@@ -168,14 +184,14 @@ export default function Dashboard() {
         message: `Ready to work on "${task.title}"? Want me to start a focus timer?`,
         type: "timer-prompt",
       });
-    }, 2000);
+    }, 3000);
   }, [user, nova, novaMuted]);
 
   const handleStartTimerFromNotification = useCallback(() => {
     setNotification({ show: false, message: "", type: "info" });
     focusTimerRef.current?.start();
     if (!novaMuted) {
-      nova.speak("Focus timer started! Let's crush it! 💪");
+      nova.speak("Focus timer started. You can do this.");
     }
     toast.success("⏱️ Focus timer started!");
   }, [nova, novaMuted]);
@@ -199,18 +215,17 @@ export default function Dashboard() {
           setReward({
             show: true,
             xp: xpGain,
-            message: allDone ? `You completed "${task.title}"! 🎉` : "Step completed! Keep going!",
+            message: allDone ? `You completed "${task.title}"! 🎉` : "Step done! Keep going!",
           });
 
-          // Show notification
           if (allDone) {
             toast.success(`🎉 Task "${task.title}" completed! +${xpGain} XP`);
             if (!novaMuted) {
-              nova.speak(`Amazing! You finished "${task.title}"! You earned ${xpGain} XP! Keep up the great work!`);
+              nova.speak(`Amazing! You finished "${task.title}". You earned ${xpGain} XP. Well done!`);
             }
           } else {
             const remaining = newSubtasks.filter(s => !s.done).length;
-            toast.info(`✅ Step done! ${remaining} steps remaining. +10 XP`);
+            toast.info(`✅ Step done! ${remaining} steps left. +10 XP`);
           }
 
           const newXp = xp + xpGain;
@@ -221,6 +236,7 @@ export default function Dashboard() {
 
           if (allDone) {
             supabase.from("tasks").update({ completed: true } as any).eq("id", taskId).then();
+            setGuidedTaskId(null);
           }
         }
 
@@ -240,7 +256,7 @@ export default function Dashboard() {
       supabase.from("profiles").update({ xp: newXp } as any).eq("user_id", user.id).then();
     }
     if (!novaMuted) {
-      nova.speak("Awesome! Focus session complete. You earned 25 XP!");
+      nova.speak("Focus session done. You earned 25 XP. Take a moment to rest.");
     }
   }, [xp, user, nova, novaMuted]);
 
@@ -256,6 +272,7 @@ export default function Dashboard() {
 
   const maxXP = level * 500;
   const greeting = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening";
+  const guidedTask = guidedTaskId ? tasks.find((t) => t.id === guidedTaskId) : null;
 
   return (
     <div className={`min-h-screen gradient-hero ${calmMode ? "transition-all duration-500" : ""}`}>
@@ -281,7 +298,7 @@ export default function Dashboard() {
           const next = !novaMuted;
           setNovaMuted(next);
           if (next) nova.stop();
-          else nova.speak("I'm back! How can I help?");
+          else nova.speak("I am here. How can I help?");
         }}
         muted={novaMuted}
       />
@@ -294,6 +311,13 @@ export default function Dashboard() {
             <span className="font-heading font-bold text-lg text-foreground">NeonStar</span>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/profile")}
+              className="rounded-full p-2 hover:bg-muted/50 transition-colors"
+              title="Your Profile"
+            >
+              <User className="h-4 w-4 text-muted-foreground" />
+            </button>
             <NovaHoverZone id="calm-mode" onHover={handleNovaHover}>
               <CalmModeToggle enabled={calmMode} onToggle={() => setCalmMode(!calmMode)} />
             </NovaHoverZone>
@@ -315,7 +339,7 @@ export default function Dashboard() {
             {greeting}, {profileName || "friend"} 👋
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Let's make today productive — one small step at a time.
+            One small step at a time. No rush.
           </p>
         </motion.div>
 
@@ -332,10 +356,37 @@ export default function Dashboard() {
               <AITaskInput onTaskCreated={handleTaskCreated} />
             </NovaHoverZone>
 
+            {/* Guided Task View - one step at a time */}
+            {guidedTask && !guidedTask.subtasks.every((s) => s.done) && (
+              <GuidedTaskView
+                taskTitle={guidedTask.title}
+                taskEmoji={guidedTask.emoji}
+                subtasks={guidedTask.subtasks}
+                onCompleteStep={(subtaskId) => handleToggleSubtask(guidedTask.id, subtaskId)}
+                onNovaSpeak={nova.speak}
+                novaMuted={novaMuted}
+              />
+            )}
+
             {tasks.length > 0 && (
               <div>
-                <h2 className="font-heading font-semibold text-lg text-foreground mb-3">Your Tasks</h2>
-                <TaskBreakdown tasks={tasks} onToggleSubtask={handleToggleSubtask} />
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-heading font-semibold text-lg text-foreground">Your Tasks</h2>
+                  {guidedTaskId && (
+                    <button
+                      onClick={() => setGuidedTaskId(null)}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Exit guided mode
+                    </button>
+                  )}
+                </div>
+                <TaskBreakdown
+                  tasks={tasks}
+                  onToggleSubtask={handleToggleSubtask}
+                  onStartGuided={(taskId) => setGuidedTaskId(taskId)}
+                  guidedTaskId={guidedTaskId}
+                />
               </div>
             )}
 
@@ -343,7 +394,7 @@ export default function Dashboard() {
               <div className="rounded-2xl bg-card border border-border shadow-card p-8 text-center">
                 <span className="text-4xl block mb-3">✨</span>
                 <h3 className="font-heading font-semibold text-foreground mb-1">No tasks yet</h3>
-                <p className="text-sm text-muted-foreground">Type a task above and AI will break it into steps for you!</p>
+                <p className="text-sm text-muted-foreground">Type a task above and I will break it into easy steps for you!</p>
               </div>
             )}
 
@@ -364,12 +415,17 @@ export default function Dashboard() {
               <FocusTimer ref={focusTimerRef} onComplete={handleFocusComplete} />
             </NovaHoverZone>
             <NovaHoverZone id="mood-checker" onHover={handleNovaHover}>
-              <MoodChecker userId={user.id} />
+              <MoodChecker userId={user.id} onMoodHover={handleMoodHover} />
             </NovaHoverZone>
             {!calmMode && (
-              <NovaHoverZone id="achievement-badges" onHover={handleNovaHover}>
-                <AchievementBadges badges={badges} />
-              </NovaHoverZone>
+              <>
+                <NovaHoverZone id="achievement-badges" onHover={handleNovaHover}>
+                  <AchievementBadges badges={badges} />
+                </NovaHoverZone>
+                <NovaHoverZone id="adaptive-profile" onHover={handleNovaHover}>
+                  <AdaptiveProfilePanel profile={adaptiveProfile} onUpdate={updateAdaptiveProfile} />
+                </NovaHoverZone>
+              </>
             )}
           </div>
         </div>
