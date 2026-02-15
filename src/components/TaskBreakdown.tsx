@@ -50,7 +50,8 @@ export function TaskBreakdown({ tasks, onToggleSubtask, onStartGuided, guidedTas
               className="flex w-full items-center justify-between p-4 text-left"
             >
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{task.emoji}</span>
+                <span className="text-2xl">{task.emoji || "📝"}</span>
+
                 <div>
                   <p className={`font-heading font-semibold ${allDone ? "text-primary line-through" : "text-foreground"}`}>
                     {task.title}
