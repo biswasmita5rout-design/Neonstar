@@ -8,7 +8,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 interface AITaskInputProps {
-  onTaskCreated: (task: { title: string; emoji: string; xpReward: number; subtasks: { id: string; text: string; done: boolean }[] }) => void;
+  onTaskCreated: (task: { 
+    title: string; 
+    emoji: string; 
+    xpReward: number; 
+    subtasks: { id: string; text: string; done: boolean }[] 
+  }) => void;
 }
 
 export function AITaskInput({ onTaskCreated }: AITaskInputProps) {
@@ -23,12 +28,15 @@ export function AITaskInput({ onTaskCreated }: AITaskInputProps) {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (!session?.access_token) {
         throw new Error("You must be logged in to use AI features");
       }
 
+      // Ensure the URL doesn't have double slashes if the ENV variable has a trailing slash
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "");
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-task-breakdown`,
+        `${baseUrl}/functions/v1/ai-task-breakdown`,
         {
           method: "POST",
           headers: {
@@ -40,19 +48,37 @@ export function AITaskInput({ onTaskCreated }: AITaskInputProps) {
       );
 
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Failed to break down task");
+        const errText = await response.text();
+        console.error("Edge Function Error:", errText);
+        throw new Error("Failed to break down task. Check your Edge Function logs.");
       }
 
       const result = await response.json();
-      if (result && result.title && result.subtasks) {
-        onTaskCreated(result);
+      console.log("AI Response Received:", result);
+
+      // Validation logic to prevent the SVG "undefined" crash
+      if (result && result.subtasks) {
+        // Ensure every subtask has an ID and text to avoid Lucide/Path errors
+        const validatedSubtasks = result.subtasks.map((st: any, index: number) => ({
+          id: st.id || `temp-${index}`,
+          text: st.text || "Untitled Step",
+          done: !!st.done
+        }));
+
+        onTaskCreated({
+          title: result.title || input,
+          emoji: result.emoji || "🎯",
+          xpReward: result.xpReward || 10,
+          subtasks: validatedSubtasks
+        });
+
         setInput("");
         toast.success("Task broken down into steps! 🎯");
       } else {
-        throw new Error("Invalid response from AI");
+        throw new Error("AI returned an empty response. Try a different prompt.");
       }
     } catch (err) {
+      console.error("Submit Error:", err);
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
@@ -87,7 +113,7 @@ export function AITaskInput({ onTaskCreated }: AITaskInputProps) {
       </p>
       <form onSubmit={handleSubmit} className="flex gap-2">
         <Input
-          placeholder="e.g. Study for biology exam, Clean my room..."
+          placeholder="e.g. Study for biology exam..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={loading}
@@ -101,7 +127,6 @@ export function AITaskInput({ onTaskCreated }: AITaskInputProps) {
             size="icon"
             onClick={handleVoice}
             disabled={loading}
-            title={voice.isListening ? "Stop listening" : "Speak your task"}
           >
             {voice.isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </Button>
@@ -112,39 +137,24 @@ export function AITaskInput({ onTaskCreated }: AITaskInputProps) {
       </form>
 
       <AnimatePresence>
-        {voice.isListening && (
+        {(voice.isListening || loading) && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             className="mt-3 flex items-center gap-2 text-xs text-primary"
           >
-            <motion.div
-              className="h-2 w-2 rounded-full bg-destructive"
-              animate={{ scale: [1, 1.4, 1] }}
-              transition={{ duration: 0.8, repeat: Infinity }}
-            />
-            Listening... speak your task
-          </motion.div>
-        )}
-        {loading && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mt-4 flex items-center gap-3 text-sm text-muted-foreground"
-          >
-            <div className="flex gap-1">
+             <div className="flex gap-1 mr-2">
               {[0, 1, 2].map((i) => (
                 <motion.div
                   key={i}
-                  className="h-2 w-2 rounded-full bg-primary"
-                  animate={{ scale: [1, 1.4, 1] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+                  className="h-1.5 w-1.5 rounded-full bg-primary"
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
                 />
               ))}
             </div>
-            AI is breaking down your task into steps...
+            {voice.isListening ? "Listening..." : "AI is breaking down your task..."}
           </motion.div>
         )}
       </AnimatePresence>
