@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, Send } from "lucide-react";
+import { Sparkles, Loader2, Send, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 interface AITaskInputProps {
   onTaskCreated: (task: { title: string; emoji: string; xpReward: number; subtasks: { id: string; text: string; done: boolean }[] }) => void;
@@ -13,6 +14,7 @@ interface AITaskInputProps {
 export function AITaskInput({ onTaskCreated }: AITaskInputProps) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const voice = useVoiceInput();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +59,19 @@ export function AITaskInput({ onTaskCreated }: AITaskInputProps) {
     }
   };
 
+  const handleVoice = () => {
+    if (voice.isListening) {
+      voice.stopListening();
+      return;
+    }
+    const ok = voice.startListening((text) => {
+      setInput(text);
+    });
+    if (!ok) {
+      toast.error("Voice input is not supported in this browser");
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -68,23 +83,50 @@ export function AITaskInput({ onTaskCreated }: AITaskInputProps) {
         <h3 className="font-heading font-semibold text-foreground">AI Task Breakdown</h3>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
-        Type any task and AI will break it into small, manageable steps
+        Type or speak any task and AI will break it into small, manageable steps
       </p>
       <form onSubmit={handleSubmit} className="flex gap-2">
         <Input
-          placeholder="e.g. Study for biology exam, Clean my room, Write an essay..."
+          placeholder="e.g. Study for biology exam, Clean my room..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={loading}
           maxLength={500}
           className="flex-1"
         />
+        {voice.supported && (
+          <Button
+            type="button"
+            variant={voice.isListening ? "destructive" : "outline"}
+            size="icon"
+            onClick={handleVoice}
+            disabled={loading}
+            title={voice.isListening ? "Stop listening" : "Speak your task"}
+          >
+            {voice.isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </Button>
+        )}
         <Button type="submit" variant="calm" disabled={loading || !input.trim()}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>
 
       <AnimatePresence>
+        {voice.isListening && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-3 flex items-center gap-2 text-xs text-primary"
+          >
+            <motion.div
+              className="h-2 w-2 rounded-full bg-destructive"
+              animate={{ scale: [1, 1.4, 1] }}
+              transition={{ duration: 0.8, repeat: Infinity }}
+            />
+            Listening... speak your task
+          </motion.div>
+        )}
         {loading && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}

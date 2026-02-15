@@ -80,6 +80,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          language_preference: string
           last_active_date: string | null
           level: number
           streak: number
@@ -92,6 +93,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          language_preference?: string
           last_active_date?: string | null
           level?: number
           streak?: number
@@ -104,6 +106,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          language_preference?: string
           last_active_date?: string | null
           level?: number
           streak?: number
@@ -154,7 +157,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_xp: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
