@@ -77,6 +77,7 @@ npm run dev
 
 ---
 🚀 Registration & Login Guide
+
 📝 Step-by-Step Registration Process
 
 Open the NeonStar application.
