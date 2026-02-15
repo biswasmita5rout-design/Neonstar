@@ -24,7 +24,7 @@ We believe technology should adapt to people — not the other way around.
 
 ## 🔗 Live Demo
 
-👉 neurathonneonstar.vercel.app/
+👉 https://neurathonneonstar.vercel.app
 
 ---
 
