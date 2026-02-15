@@ -76,6 +76,56 @@ npm run dev
 ✔ Fully containerized for deployment reliability  
 
 ---
+🚀 Registration & Login Guide
+📝 Step-by-Step Registration Process
+
+Open the NeonStar application.
+
+Click on “Sign up free” at the top right corner.
+
+Enter the following details:
+
+Full Name
+
+Email Address
+
+Password
+
+Click Register / Create Account.
+
+You will be redirected to your personalized dashboard.
+
+Start adding tasks or use AI Task Breakdown to begin.
+
+🔐 Login Process
+
+Click on Log In.
+
+Enter your registered:
+
+Email
+
+Password
+
+Click Login.
+
+Access your dashboard and continue your progress.
+
+🧪 Test Account (For Judges / Reviewers)
+
+To quickly test the platform without registering:
+
+Email:
+
+biswasmita5.rout@gmail.com
+
+
+Password:
+
+123456
+
+
+⚠️ Note: This is a demo account created for testing purposes only.
 
 ## 👩‍💻 Developed By
 
