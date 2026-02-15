@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Loader2, User } from "lucide-react";
+import { Loader2, User, BarChart3, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNova } from "@/hooks/useNova";
 import { useNovaSmartSpeaker, useAdaptiveProfile } from "@/hooks/useNovaSmartSpeaker";
@@ -101,12 +101,18 @@ export default function Dashboard() {
     if (!loading && !user) navigate("/auth?mode=login", { replace: true });
   }, [user, loading, navigate]);
 
-  // Greet user on load - calm and short
+  // Emotion-based welcome - Nova introduces herself as a friend
   useEffect(() => {
     if (user && profileName && !novaMuted) {
       const hour = new Date().getHours();
-      const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-      nova.speak(`${greeting}, ${profileName}. Let us make today a good day.`);
+      const timeGreet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+      const welcomeMessages = [
+        `${timeGreet}, ${profileName}! I am Nova, your friend and helper. Let us make today a good day together.`,
+        `${timeGreet}, ${profileName}! So glad to see you. I am here to walk with you, step by step.`,
+        `${timeGreet}, ${profileName}! Welcome back, friend. Remember, there is no rush. We go at your pace.`,
+      ];
+      const msg = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+      nova.speak(msg);
     }
   }, [profileName]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -228,11 +234,13 @@ export default function Dashboard() {
             toast.info(`✅ Step done! ${remaining} steps left. +10 XP`);
           }
 
-          const newXp = xp + xpGain;
-          const newLevel = Math.floor(newXp / 500) + 1;
-          setXp(newXp);
-          setLevel(newLevel);
-          supabase.from("profiles").update({ xp: newXp, level: newLevel } as any).eq("user_id", user.id).then();
+          // Use atomic DB increment to prevent race condition
+          supabase.rpc("increment_xp", { p_user_id: user.id, p_amount: xpGain }).then(({ data }) => {
+            if (data) {
+              setXp((data as any).xp);
+              setLevel((data as any).level);
+            }
+          });
 
           if (allDone) {
             supabase.from("tasks").update({ completed: true } as any).eq("id", taskId).then();
@@ -249,16 +257,19 @@ export default function Dashboard() {
   const handleFocusComplete = useCallback(() => {
     const xpGain = 25;
     setReward({ show: true, xp: xpGain, message: "Focus session complete! Great work! 🧠" });
-    const newXp = xp + xpGain;
-    setXp(newXp);
     toast.success("🧠 Focus session complete! +25 XP");
     if (user) {
-      supabase.from("profiles").update({ xp: newXp } as any).eq("user_id", user.id).then();
+      supabase.rpc("increment_xp", { p_user_id: user.id, p_amount: xpGain }).then(({ data }) => {
+        if (data) {
+          setXp((data as any).xp);
+          setLevel((data as any).level);
+        }
+      });
     }
     if (!novaMuted) {
       nova.speak("Focus session done. You earned 25 XP. Take a moment to rest.");
     }
-  }, [xp, user, nova, novaMuted]);
+  }, [user, nova, novaMuted]);
 
   if (loading) {
     return (
@@ -311,11 +322,13 @@ export default function Dashboard() {
             <span className="font-heading font-bold text-lg text-foreground">NeonStar</span>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate("/profile")}
-              className="rounded-full p-2 hover:bg-muted/50 transition-colors"
-              title="Your Profile"
-            >
+            <button onClick={() => navigate("/analytics")} className="rounded-full p-2 hover:bg-muted/50 transition-colors" title="Analytics">
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <button onClick={() => navigate("/settings")} className="rounded-full p-2 hover:bg-muted/50 transition-colors" title="Settings">
+              <Settings className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <button onClick={() => navigate("/profile")} className="rounded-full p-2 hover:bg-muted/50 transition-colors" title="Your Profile">
               <User className="h-4 w-4 text-muted-foreground" />
             </button>
             <NovaHoverZone id="calm-mode" onHover={handleNovaHover}>
