@@ -1,73 +1,86 @@
-# Welcome to your Lovable project
+# 🌟 Neonstar – Empowering Neurodiverse Minds
 
-## Project info
+Neonstar is an intelligent, accessible web platform designed to support neurodiverse individuals by creating a calm, adaptive, and user-friendly digital experience.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Our goal is to reduce cognitive overload, enhance clarity, and provide structured interaction tailored for neurodiverse users.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 💙 Our Mission
 
-**Use Lovable**
+Neurodiverse individuals often face challenges with overstimulation, complex interfaces, and inconsistent digital experiences.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Neonstar focuses on:
 
-Changes made via Lovable will be committed automatically to this repo.
+• Simplicity  
+• Predictability  
+• Accessibility  
+• Calm visual design  
+• Structured user interaction  
 
-**Use your preferred IDE**
+We believe technology should adapt to people — not the other way around.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+---
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 🔗 Live Demo
 
-Follow these steps:
+👉 https://your-vercel-link.vercel.app
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+---
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## 🐳 Docker Support (Reproducible Setup)
 
-# Step 3: Install the necessary dependencies.
-npm i
+Build the Docker image:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+docker build -t neonstar-app .
 
-**Edit a file directly in GitHub**
+Run the container:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+docker run -p 5173:5173 neonstar-app
 
-**Use GitHub Codespaces**
+Open in browser:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+http://localhost:5173
 
-## What technologies are used for this project?
+---
 
-This project is built with:
+## 🛠 Technology Stack
 
 - Vite
-- TypeScript
 - React
-- shadcn-ui
+- TypeScript
 - Tailwind CSS
+- shadcn-ui
+- Docker (Production-ready containerization)
 
-## How can I deploy this project?
+---
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## 💻 Local Development
 
-## Can I connect a custom domain to my Lovable project?
+Install dependencies:
 
-Yes, you can!
+npm install
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Run development server:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+npm run dev
+
+---
+
+## 🎯 Why Neonstar Matters
+
+✔ Reduces sensory overload  
+✔ Encourages structured interaction  
+✔ Designed with accessibility in mind  
+✔ Built with scalable modern architecture  
+✔ Fully containerized for deployment reliability  
+
+---
+
+## 👩‍💻 Developed By
+
+Saurabh Poddar 
+Biswasmita Rout  
+CV Raman Global University | Building technology with purpose
+
+
